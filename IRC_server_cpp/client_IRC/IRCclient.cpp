@@ -6,7 +6,7 @@
 /*   By: chris <chris@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/16 18:59:10 by chris             #+#    #+#             */
-/*   Updated: 2023/12/18 07:50:59 by chris            ###   ########.fr       */
+/*   Updated: 2023/12/19 08:03:18 by chris            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,14 +60,14 @@ void    IRCclient::ft_run() {
         FD_SET(sockfd, &readfds);        // Ajoutez le socket à l'ensemble
 
         int ready = select(sockfd + 1, &readfds, NULL, NULL, NULL);
-        if (ready == -1) {
+        if (ready < 0) {
             perror("select");
             exit(EXIT_FAILURE);
         }
-        else if (ready > 0) {
-            handleUserInput();
-            handleServerResponse();
-        }
+        
+        handleUserInput();
+        handleServerResponse();
+        
     }
 }
 
@@ -82,15 +82,16 @@ void    IRCclient::handleUserInput() {
 
             fgets(inputBuffer, sizeof(inputBuffer), stdin);
     
-            if( strcmp(inputBuffer, "quit\n") == 0){
+            if( strcmp(inputBuffer, ":quit\n") == 0){
                 std::cout << B_GREEN "You are disconnected from the server." RESET << std::endl;
                 close(sockfd);
                 exit(0);
             }
+
             // Send user input to the server
             if(strcmp(inputBuffer, "\n") == 0 && toSend.empty()) {
                 memset(inputBuffer, 0, BUFFERSIZE);
-                continue;
+                break;
             }
             tmp = inputBuffer;
             if(!toSend.empty()) {
@@ -99,6 +100,14 @@ void    IRCclient::handleUserInput() {
             if(strcmp(inputBuffer, "\n") != 0)
                 toSend += tmp;
                 
+            if( strcmp(inputBuffer, ":log\n") == 0){
+                
+                send(sockfd, toSend.c_str(), toSend.size(), 0);
+                toSend.clear();
+                tmp.clear();
+                memset(inputBuffer, 0, BUFFERSIZE);
+                return;
+            }
             if(strcmp(inputBuffer, "\n") == 0) {
 
                 send(sockfd, toSend.c_str(), toSend.size(), 0);
@@ -111,58 +120,64 @@ void    IRCclient::handleUserInput() {
                 continue;
             }
         }
-       
     }
 }
+
 
 void    IRCclient::handleServerResponse() {
 
     if (FD_ISSET(sockfd, &readfds)) {
         // Code pour traiter la réception de données du serveur
-        char serverResponse[BUFFERSIZE];
-        ssize_t bytesRead = recv(sockfd, serverResponse, sizeof(serverResponse) - 1, 0);
-        if (bytesRead <= 0) {
-            // Gestion de la déconnexion du serveur
-            return;
+        char buffer[BUFFERSIZE];
+        std::string message;
+        ssize_t bytesRead;
+
+        while(true) {
+            bytesRead = 0;
+            ssize_t bytesRead = recv(sockfd, buffer, sizeof(buffer), 0);
+            buffer[bytesRead] = '\0';
+            if (bytesRead <= 0) {
+                std::cout << "Error: recv client" << std::endl;
+                break;
+            }
+            message += buffer;
+            if ( message.back() == '\n' ) {
+				break;
+			}
         }
-        serverResponse[bytesRead] = '\0';
-        std::cout << B_BLUE << serverResponse << RESET << std::endl;
+        std::cout << B_BLUE << message << RESET << std::endl;
+        message.clear();
     }
 }
 
 void    IRCclient::askClientName(std::string& clientName) {
 
-    if (FD_ISSET(STDIN_FILENO, &readfds)) {
-
-        while ( true ) {
-
-            std::cout << B_GRAY "Please, enter the name you want to use into this channel: " RESET;
-
-            std::getline(std::cin, clientName);
-            if (errorEof( clientName ) == true ) {
-                continue;
-            }
-            if (clientName.empty()) {
-                std::cout << RED << "No input provided." << RESET << std::endl;
-                continue;
-            }
-            else {
-                send(sockfd, clientName.c_str(), clientName.size(), 0);
-                char serverResponse[BUFFERSIZE];
-                ssize_t bytesRead = recv(sockfd, serverResponse, sizeof(serverResponse) - 1, 0);
-                if (bytesRead <= 0) {
-                    // Gestion de la déconnexion du serveur
-                    return;
-                }
-                serverResponse[bytesRead] = '\0';
-                if( strcmp(serverResponse, "doubleName") == 0 ) {
-                    std::cout << "The name you choose is already used !" << std::endl;
-                    memset(serverResponse, 0, BUFFERSIZE);
-                    clientName.clear();
-                    continue;
-                }
+    while ( true ) {
+        std::cout << B_GRAY "Please, enter the name you want to use into this channel: " RESET;
+        std::getline(std::cin, clientName);
+        if (errorEof( clientName ) == true ) {
+            continue;
+        }
+        if (clientName.empty()) {
+            std::cout << RED << "No input provided." << RESET << std::endl;
+            continue;
+        }
+        else {
+            send(sockfd, clientName.c_str(), clientName.size(), 0);
+            char serverResponse[BUFFERSIZE];
+            ssize_t bytesRead = recv(sockfd, serverResponse, sizeof(serverResponse) - 1, 0);
+            if (bytesRead <= 0) {
+                // Gestion de la déconnexion du serveur
                 return;
             }
+            serverResponse[bytesRead] = '\0';
+            if( strcmp(serverResponse, "doubleName") == 0 ) {
+                std::cout << "The name you choose is already used !" << std::endl;
+                memset(serverResponse, 0, BUFFERSIZE);
+                clientName.clear();
+                continue;
+            }
+            return;
         }
     }
 }

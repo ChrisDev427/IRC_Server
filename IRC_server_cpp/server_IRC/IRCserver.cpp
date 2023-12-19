@@ -6,7 +6,7 @@
 /*   By: chris <chris@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/16 18:51:25 by chris             #+#    #+#             */
-/*   Updated: 2023/12/18 08:05:46 by chris            ###   ########.fr       */
+/*   Updated: 2023/12/19 07:57:33 by chris            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -123,6 +123,7 @@ void IRCserver::ft_accept() {
 		
             id++;
             clients[clientName] = newConnection;
+			timeDate[clientName] = getTime();
             connectedClients++;
 			
             std::cout << IT B_ORANGE "Client: " << clientName << " connected..." ST RESET << std::endl;
@@ -205,11 +206,45 @@ void IRCserver::ft_recv() {
 				}
 			}
 			if(bytesRead > 0) {
-				writeToClients(it->first);
+				if ( message == ":log\n") {
+					printLoggedClients(it->second);
+				}
+				else {
+					writeToClients(it->first);
+				}
 				message.clear();
     		}
         }
     }
+}
+
+void IRCserver::printLoggedClients(int client) {
+
+	std::map<std::string, int>::iterator itClient = clients.begin();
+	std::map<std::string, std::string>::iterator itTime = timeDate.begin();
+    std::string toPrint = std::to_string(clients.size()) + " client(s) actualy logged\n\n";
+    for ( ; itClient != clients.end() && itTime != timeDate.end(); itClient++, itTime++ ) {
+
+         
+		toPrint += itClient->first + " | since: ";
+		toPrint += itTime->second + "\n";
+    }
+    send( client, toPrint.c_str(), toPrint.size(), 0 );   
+    toPrint.clear();
+}
+
+std::string IRCserver::getTime() {
+
+	// Obtenir le temps actuel en tant que point de départ
+    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+
+    // Convertir le temps en une représentation de temps en utilisant std::chrono::system_clock
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+
+    // Utiliser std::ctime pour convertir le temps en une chaîne de caractères
+	std::string timeDate = std::ctime(&currentTime);
+    
+	return timeDate;
 }
 
 void IRCserver::printLogin(std::string clientName) {
@@ -236,37 +271,6 @@ void IRCserver::printLogout(std::string clientName) {
     announce.clear();
 }
 
-// void IRCserver::writeToClients( std::string clientName ) {
-
-// 	if (message.find('\n') == std::string::npos) {
-// 		return;
-// 	}
-//     std::string prefix = clientName + ": ";
-
-//     std::map<std::string, int>::iterator it = clients.begin();
-//     for ( ; it != clients.end(); it++ ) {
-
-//         if( it->first != clientName) {
-
-// 		    int i = 0;
-//             while ( message[i] ) {
-// 		    	send( it->second, prefix.c_str(), prefix.size(), 0 );
-// 		    	while ( message[i] != '\n' ) {
-                
-// 		    		send( it->second, &message[i], 1, 0 );
-// 		    		i++;
-// 		    	}
-// 		    	send( it->second, "\n", 1, 0 );
-    
-// 		    	i++;
-//                 if (message.find('\n', i) == std::string::npos) {
-// 		            break;
-// 	            }
-// 		    }
-//         }
-// 	}
-// 	prefix.clear();
-// }
 void IRCserver::writeToClients( std::string clientName ) {
 
     std::string toSend = clientName + ": " + message;
@@ -279,37 +283,3 @@ void IRCserver::writeToClients( std::string clientName ) {
 	}
 	toSend.clear();
 }
-// void    IRCserver::askClientName(std::string& clientName) {
-
-//     while ( true ) {
-        
-//         std::cout << "Please, enter the name you want to use into this channel: ";
-        
-//         std::getline(std::cin, clientName);
-//         if (errorEof( clientName ) == true ) {
-            
-//             continue;
-//         }
-//         if (clientName.empty()) {
-//             std::cout << RED << "No input provided." << RESET << std::endl;
-//             continue;
-//         }
-//         else {
-//             return;
-//         }
-//     }
-// }
-
-
-// bool    IRCserver::errorEof( std::string& str ) {
-
-//     if ( std::cin.eof() ) {
-
-//         str.clear();
-//         std::cin.clear();
-//         std::clearerr( stdin );
-//         std::cout << RED << "\nInvalid input." << RESET << std::endl;
-//         return true;
-//     }
-//     return false;
-// }

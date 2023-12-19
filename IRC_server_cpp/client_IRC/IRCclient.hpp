@@ -25,7 +25,7 @@
 #include <stdexcept>
 #include <map>
 
-#define SERVER_ADDR "192.168.0.42"
+#define SERVER_ADDR "88.164.56.55"
 #define SERVER_PORT 17000
 #define BUFFERSIZE 1024
 
