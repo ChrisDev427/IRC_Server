@@ -6,7 +6,7 @@
 /*   By: chris <chris@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/16 18:59:10 by chris             #+#    #+#             */
-/*   Updated: 2023/12/19 08:03:18 by chris            ###   ########.fr       */
+/*   Updated: 2024/03/17 13:06:09 by chris            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,12 +48,11 @@ void    IRCclient::ft_connect() {
 
 void    IRCclient::ft_run() {
 
-    
     while (1) {
         if( clientName.empty()) {
               
             askClientName(clientName);
-            std::cout << B_GREEN "Wellcome !\nYou are connected to chmassa IRC-Server as: " << clientName << RESET << std::endl << std::endl;
+            std::cout << B_GREEN "Wellcome !\nYou are connected to IRC-Server as: " << clientName << RESET << std::endl << std::endl;
         }
         FD_ZERO(&readfds);
         FD_SET(STDIN_FILENO, &readfds);  // Ajoutez stdin à l'ensemble
@@ -64,15 +63,13 @@ void    IRCclient::ft_run() {
             perror("select");
             exit(EXIT_FAILURE);
         }
-        
         handleUserInput();
         handleServerResponse();
-        
     }
 }
 
 void    IRCclient::handleUserInput() {
-
+    
     if (FD_ISSET(STDIN_FILENO, &readfds)) {
         // Code pour traiter l'entrée utilisateur
         char inputBuffer[BUFFERSIZE];
@@ -83,9 +80,10 @@ void    IRCclient::handleUserInput() {
             fgets(inputBuffer, sizeof(inputBuffer), stdin);
     
             if( strcmp(inputBuffer, ":quit\n") == 0){
+                system("clear");
                 std::cout << B_GREEN "You are disconnected from the server." RESET << std::endl;
                 close(sockfd);
-                exit(0);
+                exit(EXIT_SUCCESS);
             }
 
             // Send user input to the server
@@ -123,9 +121,8 @@ void    IRCclient::handleUserInput() {
     }
 }
 
-
 void    IRCclient::handleServerResponse() {
-
+    
     if (FD_ISSET(sockfd, &readfds)) {
         // Code pour traiter la réception de données du serveur
         char buffer[BUFFERSIZE];
@@ -137,8 +134,9 @@ void    IRCclient::handleServerResponse() {
             ssize_t bytesRead = recv(sockfd, buffer, sizeof(buffer), 0);
             buffer[bytesRead] = '\0';
             if (bytesRead <= 0) {
-                std::cout << "Error: recv client" << std::endl;
-                break;
+                std::cout << "Error: the server is turned off" << std::endl;
+                close(sockfd);
+                exit(EXIT_FAILURE);
             }
             message += buffer;
             if ( message.back() == '\n' ) {

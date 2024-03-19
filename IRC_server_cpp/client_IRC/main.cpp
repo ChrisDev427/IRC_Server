@@ -6,7 +6,7 @@
 /*   By: chris <chris@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/16 19:20:56 by chris             #+#    #+#             */
-/*   Updated: 2023/12/17 21:12:34 by chris            ###   ########.fr       */
+/*   Updated: 2024/03/15 09:56:28 by chris            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,9 +16,9 @@
 static void printTitle(void) {
     
     system("clear");
-    std::cout << B_CYAN << "\n\n   *************************************" << std::endl;
-    std::cout << "   *** Welcome to chmassa IRC server ***" << std::endl;
-    std::cout << "   *************************************\n\n" << RESET << std::endl;
+    std::cout << B_CYAN << "\n\n   ******************" << std::endl;
+    std::cout << "   *** IRC client ***" << std::endl;
+    std::cout << "   ******************\n\n" << RESET << std::endl;
     
 }
 

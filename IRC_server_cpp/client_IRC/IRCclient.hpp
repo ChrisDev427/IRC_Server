@@ -6,7 +6,7 @@
 /*   By: chris <chris@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/16 18:52:09 by chris             #+#    #+#             */
-/*   Updated: 2023/12/18 13:47:30 by chris            ###   ########.fr       */
+/*   Updated: 2024/03/15 09:03:29 by chris            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,8 +25,8 @@
 #include <stdexcept>
 #include <map>
 
-#define SERVER_ADDR "88.164.56.55"
-#define SERVER_PORT 17000
+#define SERVER_ADDR "127.0.0.1"
+#define SERVER_PORT 16000
 #define BUFFERSIZE 1024
 
 class IRCclient {

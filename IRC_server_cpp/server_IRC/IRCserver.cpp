@@ -6,27 +6,52 @@
 /*   By: chris <chris@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/16 18:51:25 by chris             #+#    #+#             */
-/*   Updated: 2023/12/19 07:57:33 by chris            ###   ########.fr       */
+/*   Updated: 2024/03/17 19:53:07 by chris            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "IRCserver.hpp"
 
+static IRCserver* instancePtr = nullptr;
+
+void IRCserver::sigintHandler(int signum) {
+    std::cout << RED " IRC server stopping..." << RESET << std::endl;
+    
+    if (instancePtr) {
+        for (const auto& pair : instancePtr->clients) {
+            std::cout << ORANGE "Closing client fd -> " << pair.first << " -> " << pair.second << RESET << std::endl;
+            close(pair.second);
+        }
+
+        std::cout << ORANGE "Closing server socket -> " << instancePtr->sockfd << RESET << std::endl;
+        close(instancePtr->sockfd);
+    } else {
+        std::cerr << "Error: instancePtr is null" << std::endl;
+    }
+    exit(signum);
+}
+
 IRCserver::IRCserver(){
 
     id = 0;
     connectedClients = 0;
-   
-    launchServer(port);
+	ofs = std::ofstream(".history", std::ios::app);
+
+	instancePtr = this;
+	struct sigaction sa;
+    sa.sa_handler = sigintHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, nullptr);
+	
+    launchServer();
     ft_listen();
     ft_run();
-    
-}
-IRCserver::~IRCserver( void ){
-
 }
 
-void IRCserver::launchServer(size_t port) {
+IRCserver::~IRCserver(){}
+
+void IRCserver::launchServer() {
 
     // socket create and verification 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -36,7 +61,7 @@ void IRCserver::launchServer(size_t port) {
         throw std::logic_error(B_RED "Error: socket init failed." RESET);
 	} 
 	else {
-		std::cout << B_GREEN "Socket successfully created..." RESET << std::endl;
+		std::cout << B_GREEN "Socket successfully created. " RESET << std::endl;
     }
 	bzero(&servaddr, sizeof(servaddr)); 
 	// assign IP, PORT 
@@ -52,7 +77,6 @@ void IRCserver::launchServer(size_t port) {
 	else {
 		std::cout << B_GREEN "Socket successfully binded - port::" << PORT << RESET << std::endl;
     }
-
 }
 
 void IRCserver::ft_listen() {
@@ -62,14 +86,13 @@ void IRCserver::ft_listen() {
         throw std::logic_error( B_RED "Error: listen failed." ST RESET);
 	}
     else {
-        std::cout << IT B_GRAY "IRCServer listenning...\n" ST RESET << std::endl;
+        std::cout << IT B_GREEN "IRC Server listenning ...\n" ST RESET << std::endl;
     }
 }
 
 void IRCserver::ft_run() {
 
-    while (1) {
-
+    while (true) {
 		// Si il n'y a aucun client connecté, le premier client aura l'id: 0
 		if ( connectedClients == 0 ) 
 			id = 0;
@@ -77,9 +100,7 @@ void IRCserver::ft_run() {
     	FD_ZERO(&readfds);
 		// Ajouter le socket du serveur
     	FD_SET(sockfd, &readfds);
-
     	maxfd = sockfd;
-
     	// Ajouter les descripteurs des clients connectés
     	for ( std::map<std::string, int>::iterator it = clients.begin(); it != clients.end(); it++ ) {
     
@@ -88,28 +109,21 @@ void IRCserver::ft_run() {
     			maxfd = it->second;
 			}
     	}
-    	
     	// Utiliser select pour surveiller les descripteurs de fichiers
     	if ( select(maxfd + 1, &readfds, NULL, NULL, NULL) < 0 ) {
     	    // Gestion de l'erreur de select
 			write(2, "Fatal error\n", 12);
     	    exit(1);
     	}
-       
-    	// Vérifier s'il y a une nouvelle connexion
 		ft_accept();
-
-    	// Vérifier les clients existants pour la lecture
 		ft_recv();
 	}
 }
 
 void IRCserver::ft_accept() {
 
-        
     // Vérifier s'il y a une nouvelle connexion
     if (FD_ISSET(sockfd, &readfds)) {
-        
 		len = sizeof(cli);
 		int newConnection = accept(sockfd, (struct sockaddr *)&cli, &len);
 		
@@ -117,7 +131,6 @@ void IRCserver::ft_accept() {
     	    printf("server acccept failed...\n"); 
     	} 
     	else {
-            // std::string newClient = "Chris" + std::to_string(id);
             std::string clientName;
 			while(getClientName(newConnection, clientName) == false) {}
 		
@@ -126,8 +139,8 @@ void IRCserver::ft_accept() {
 			timeDate[clientName] = getTime();
             connectedClients++;
 			
-            std::cout << IT B_ORANGE "Client: " << clientName << " connected..." ST RESET << std::endl;
-            std::cout << IT B_ORANGE "Connected clients [" << connectedClients << "]" ST RESET << std::endl << std::endl;
+            std::cout << IT B_GREEN "Client: " << clientName << " connected. " ST RESET;
+            std::cout << IT B_GRAY "Total connected clients [" << connectedClients << "]" ST RESET << std::endl;
             printLogin(clientName);
 		}
     }
@@ -158,8 +171,6 @@ bool IRCserver::getClientName( int newConn, std::string & clientName ) {
 			memset(clientResponse, 0, 256);
 			return false;
 		}
-		
-
 	}
 }
 
@@ -180,11 +191,8 @@ void IRCserver::ft_recv() {
 				
 				bytesRead = 0;
     			bytesRead = recv(it->second, buffer, sizeof(buffer), 0);
-				// printf("read = %d\n", bytesRead);
 				buffer[bytesRead] = '\0';
-				
 				message = message + buffer;
-				// printf("message = %s\n", message);
 				memset(buffer, 0, bufferSize);
     			if (bytesRead < 0) {
 					printf("recv failed\n");
@@ -194,8 +202,8 @@ void IRCserver::ft_recv() {
                     
 					printLogout(it->first);
 					connectedClients--;
-                    std::cout << IT B_ORANGE "Client: " << it->first << " disconnected..." ST RESET << std::endl;
-            		std::cout << IT B_ORANGE "Connected clients [" << connectedClients << "]" ST RESET << std::endl << std::endl;
+                    std::cout << IT B_ORANGE "Client: " << it->first << " disconnected. " ST RESET;
+            		std::cout << IT B_GRAY "Total connected clients [" << connectedClients << "]" ST RESET << std::endl;
 
 					close(it->second);
 					clients.erase(it);
@@ -225,7 +233,6 @@ void IRCserver::printLoggedClients(int client) {
     std::string toPrint = std::to_string(clients.size()) + " client(s) actualy logged\n\n";
     for ( ; itClient != clients.end() && itTime != timeDate.end(); itClient++, itTime++ ) {
 
-         
 		toPrint += itClient->first + " | since: ";
 		toPrint += itTime->second + "\n";
     }
@@ -237,10 +244,8 @@ std::string IRCserver::getTime() {
 
 	// Obtenir le temps actuel en tant que point de départ
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-
     // Convertir le temps en une représentation de temps en utilisant std::chrono::system_clock
     std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-
     // Utiliser std::ctime pour convertir le temps en une chaîne de caractères
 	std::string timeDate = std::ctime(&currentTime);
     
@@ -251,6 +256,9 @@ void IRCserver::printLogin(std::string clientName) {
     
     std::map<std::string, int>::iterator it = clients.begin();
     std::string announce = "server: " + clientName + " logged in\n";
+	if (ofs) {
+		ofs << "\t\t\t\t\t\t{ Login : " + getTime() + "\t\t\t\t\t\t\tClient Name = " + clientName + " }" << std::endl;
+	}
     for ( ; it != clients.end(); it++ ) {
         if( it->first != clientName) {
             send( it->second, announce.c_str(), announce.size(), 0 );   
@@ -263,6 +271,9 @@ void IRCserver::printLogout(std::string clientName) {
 
     std::map<std::string, int>::iterator it = clients.begin();
     std::string announce = "server: " + clientName + " logged out\n";
+	if (ofs) {
+		ofs << "\t\t\t\t\t\t{ Logout : " + getTime() + "\t\t\t\t\t\t\tClient Name = " + clientName + " }" << std::endl;
+	}
     for ( ; it != clients.end(); it++ ) {
         if( it->first != clientName) {
             send( it->second, announce.c_str(), announce.size(), 0 );   
@@ -275,6 +286,9 @@ void IRCserver::writeToClients( std::string clientName ) {
 
     std::string toSend = clientName + ": " + message;
     std::map<std::string, int>::iterator it = clients.begin();
+	if (ofs) {
+		ofs << "- " + getTime() + toSend << std::endl;
+	}
     for ( ; it != clients.end(); it++ ) {
 
         if( it->first != clientName) {
